@@ -1,0 +1,20 @@
+{
+    "type": "package",
+    "name": "lue-bird/elm-alternative-benchmark-runner",
+    "summary": "better benchmark runner",
+    "license": "MIT",
+    "version": "1.0.0",
+    "exposed-modules": [
+        "Benchmark.Runner.Alternative",
+        "Benchmark.Alternative"
+    ],
+    "elm-version": "0.19.1 <= v < 0.20.0",
+    "dependencies": {
+        "BrianHicks/elm-trend": "2.1.3 <= v < 3.0.0",
+        "elm/browser": "1.0.2 <= v < 2.0.0",
+        "elm/core": "1.0.5 <= v < 2.0.0",
+        "elm-explorations/benchmark": "1.0.2 <= v < 2.0.0",
+        "miniBill/elm-ui-with-context": "1.1.0 <= v < 2.0.0"
+    },
+    "test-dependencies": {}
+}
