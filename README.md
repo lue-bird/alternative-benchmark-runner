@@ -1,9 +1,11 @@
 ## alternative-benchmark-runner
 
+Extending [elm-explorations/benchmark](https://package.elm-lang.org/packages/elm-explorations/benchmark/latest/).
+
 Extra features:
 - compare multiple benchmarks
-- toggle dark mode
 - cleaner interface
+- dark mode option
 
 ![Benchmark example](https://raw.githubusercontent.com/lue-bird/alternative-benchmark-runner/master/benchmark-example.png)
 
@@ -12,42 +14,93 @@ module Main exposing (main)
 
 import Benchmark exposing (Benchmark, describe)
 import Benchmark.Alternative exposing (sort)
-import Benchmark.Runner.Alternative exposing (BenchmarkProgram, program)
+import Benchmark.Runner.Alternative as BenchmarkRunner
 
 
-main : BenchmarkProgram
+main : BenchmarkRunner.Program
 main =
-    program suite
+    BenchmarkRunner.program suite
 
 suite : Benchmark
 suite =
     describe "array"
         [ sort "range from 0"
             (\f -> f 100)
-            [ ( "with initialize"
-              , \length -> Array.initialize length identity
-              )
-            , ( "with List.range", increasingWithListRange )
-            , ( "with indexedMap", increasingWithIndexedMap )
+            [ ( "with initialize", from0WithInitialize )
+            , ( "with List.range", from0WithListRange )
+            , ( "with indexedMap", from0WithIndexedMap )
             ]
         ]
 
-increasingWithListRange length =
+from0WithInitialize length =
+    Array.initialize length identity
+
+from0WithListRange length =
     Array.fromList (List.range 0 (length - 1))
 
-increasingWithIndexedMap length =
+from0WithIndexedMap length =
     Array.repeat length ()
         |> Array.indexedMap (\i _ -> i)
 ```
 
-You could also add options:
+You can also add options:
 
 ```elm
-import Benchmark.Runner.Alternative exposing (BenchmarkProgram, programWith, defaultOptions, Theme(..))
+import Benchmark.Runner.Alternative as BenchmarkRunner exposing (defaultOptions, Theme(..))
 
 
-main : BenchmarkProgram
+main : BenchmarkRunner.Program
 main =
-    programWith { defaultOptions | theme = Light }
+    BenchmarkRunner.programWith
+        { defaultOptions | theme = Light }
+        suite
 ```
 
+to the point that you can write your own render function.
+
+```elm
+import Element
+import Benchmark.State exposing (State(..))
+import Benchmark.Reporting.Alternative exposing (Structure(..))
+
+main =
+    programWith
+        { defaultOptions
+            | theme = Light
+            , view = view
+        }
+        suite
+
+view state =
+    case state of
+        Running _ _ ->
+            Element.text "running benchmarks..."
+
+        Finished finished ->
+            viewFinished finished
+
+viewFinished finished =
+    case finished.structure of
+        Group group ->
+            Element.column [ Ui.spacing 6 ]
+                [ Element.text finisnished.name
+                , Element.column [ Ui.spacing 4 ]
+                    (group |> List.map viewFinished)
+                ]
+
+        Single { result } ->
+            case result of
+                Ok trend ->
+                    Ui.row [ Ui.spacing 6 ]
+                        [ Ui.text finished.name
+                        , Ui.text
+                            (runsPerSecond trend
+                                |> String.fromFloat
+                            )
+                        ]
+
+                Err _ ->
+                    Element.text "Failed!"
+
+        --...
+```
