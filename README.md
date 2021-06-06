@@ -13,8 +13,8 @@ Extra features:
 module Main exposing (main)
 
 import Benchmark exposing (Benchmark, describe)
-import Benchmark.Alternative exposing (sort)
-import Benchmark.Runner.Alternative as BenchmarkRunner
+import Benchmark.Lue exposing (sort)
+import Benchmark.Runner.Lue as BenchmarkRunner
 
 
 main : BenchmarkRunner.Program
@@ -46,7 +46,7 @@ from0WithIndexedMap length =
 You can also add options:
 
 ```elm
-import Benchmark.Runner.Alternative as BenchmarkRunner exposing (defaultOptions, Theme(..))
+import Benchmark.Runner.Lue as BenchmarkRunner exposing (defaultOptions, Theme(..))
 
 
 main : BenchmarkRunner.Program
@@ -60,8 +60,7 @@ to the point that you can write your own render function.
 
 ```elm
 import Element
-import Benchmark.State exposing (State(..))
-import Benchmark.Reporting.Alternative exposing (Structure(..))
+import Benchmark.Status.Lue exposing (Status(..), StructureKind(..))
 
 main =
     programWith
@@ -71,13 +70,13 @@ main =
         }
         suite
 
-view state =
-    case state of
+view status =
+    case status of
         Running _ _ ->
             Element.text "running benchmarks..."
 
         Finished finished ->
-            viewFinished finished
+            viewFinished finished status.name
 
 viewFinished finished =
     case finished.structure of
