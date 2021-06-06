@@ -5,11 +5,9 @@
     "license": "MIT",
     "version": "1.0.0",
     "exposed-modules": [
-        "Benchmark.Runner.Alternative",
-        "Benchmark.Status.Alternative",
-        "Benchmark.State",
-        "Benchmark.Reporting.Alternative",
-        "Benchmark.Alternative"
+        "Benchmark.Runner.Lue",
+        "Benchmark.Status.Lue",
+        "Benchmark.Lue"
     ],
     "elm-version": "0.19.1 <= v < 0.20.0",
     "dependencies": {

@@ -1,4 +1,4 @@
-module Benchmark.Runner.Alternative exposing
+module Benchmark.Runner.Lue exposing
     ( Program, program
     , Options, programWith, defaultOptions, Theme, darkTheme, lightTheme
     , progressBenchmark
@@ -21,11 +21,8 @@ module Benchmark.Runner.Alternative exposing
 -}
 
 import Benchmark exposing (Benchmark)
-import Benchmark.Reporting as Report
-import Benchmark.Reporting.Alternative as Report exposing (Report, Structure(..))
 import Benchmark.Runner.Humanize as Humanize
-import Benchmark.State as State exposing (Finished, Running(..), State(..))
-import Benchmark.Status.Alternative exposing (runsPerSecond, secondsPerRun)
+import Benchmark.Status.Lue as Status exposing (Running(..), Status(..), StructureKind(..), StructureStatus, runsPerSecond, secondsPerRun)
 import Browser
 import Element.WithContext as Ui
 import Element.WithContext.Background as Background
@@ -82,7 +79,7 @@ programWith options suite =
 -}
 type alias Options =
     { theme : Theme
-    , view : Report.State -> Ui.Element Context Msg
+    , view : Report.Status -> Ui.Element Context Msg
     }
 
 
@@ -157,7 +154,7 @@ viewDocument { theme } { suite } =
     , body =
         [ let
             suiteReport =
-                suite |> Report.fromBenchmark |> Report.state
+                suite |> Report.fromBenchmark |> Report.fromReport
           in
           view suiteReport
             |> Ui.layout
@@ -169,7 +166,7 @@ viewDocument { theme } { suite } =
     }
 
 
-view : Report.State -> Ui.Element Context msg
+view : Report.Status -> Ui.Element Context msg
 view status =
     [ Ui.column []
         [ Ui.text "benchmark report"
@@ -189,7 +186,7 @@ view status =
             ]
 
 
-viewStructure : Report.State -> Ui.Element Context msg
+viewStructure : Report.Status -> Ui.Element Context msg
 viewStructure report =
     case report of
         Running _ running ->
@@ -273,7 +270,7 @@ viewFinishedSingle name finished =
             [ Ui.paddingXY 0 4 ]
 
 
-viewRunningStatus : Running -> Ui.Element Context msg
+viewRunningStatus : Status.Running -> Ui.Element Context msg
 viewRunningStatus runningStatus =
     let
         viewInfo info =
@@ -310,35 +307,30 @@ viewGroup name structures =
 
 viewFinishedSeries :
     String
-    -> List ( String, Finished )
+    -> List { name : String, result : Status.Result }
     -> Ui.Element Context msg
 viewFinishedSeries name series =
     let
-        results =
+        successes =
             series
                 |> List.map
-                    (\( subName, result ) ->
-                        case result of
+                    (\sub ->
+                        case sub.result of
                             Ok trend ->
-                                Ok ( subName, trend )
+                                Just { name = sub.name, trend = trend }
 
                             Err _ ->
-                                Err subName
+                                Nothing
                     )
-
-        successes =
-            results
-                |> List.filterMap Result.toMaybe
-                |> List.sortBy
-                    (\( _, trend ) -> secondsPerRun trend)
+                |> List.sortBy (.trend >> secondsPerRun)
 
         failures =
-            results
+            series
                 |> List.filterMap
-                    (\result ->
-                        case result of
-                            Err subName ->
-                                Just subName
+                    (\sub ->
+                        case sub.result of
+                            Err _ ->
+                                Just sub.name
 
                             Ok _ ->
                                 Nothing
@@ -349,18 +341,14 @@ viewFinishedSeries name series =
             [ { header = viewHeadline name
               , width = Ui.shrink
               , view =
-                    \( subName, _ ) ->
-                        Ui.text subName
+                    \sub ->
+                        Ui.text sub.name
                             |> Ui.el [ Ui.alignBottom ]
               }
             , let
                 maxSecondPerRun =
                     List.maximum
-                        (series
-                            |> List.filterMap
-                                (\( _, status ) ->
-                                    status |> Result.toMaybe
-                                )
+                        (successes
                             |> List.map secondsPerRun
                         )
                         |> Maybe.withDefault 0
@@ -368,7 +356,7 @@ viewFinishedSeries name series =
               { header = viewInfoHeader "time / run"
               , width = Ui.minimum 130 Ui.shrink
               , view =
-                    \( _, trend ) ->
+                    \{ trend } ->
                         viewRelation
                             (secondsPerRun trend / maxSecondPerRun)
                             [ Ui.width Ui.fill, Ui.height Ui.fill ]
@@ -376,14 +364,14 @@ viewFinishedSeries name series =
             , { header = viewInfoHeader "runs / second"
               , width = Ui.shrink
               , view =
-                    \( _, trend ) ->
+                    \{ trend } ->
                         (runsPerSecond trend |> floor |> Humanize.int)
                             |> Ui.text
               }
             , { header = viewInfoHeader "goodness of fit"
               , width = Ui.shrink
               , view =
-                    \( _, trend ) ->
+                    \{ trend } ->
                         Trend.goodnessOfFit trend
                             |> Humanize.percent
                             |> Ui.text
