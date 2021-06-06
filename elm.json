@@ -1,11 +1,14 @@
 {
     "type": "package",
     "name": "lue-bird/elm-alternative-benchmark-runner",
-    "summary": "better benchmark runner",
+    "summary": "nicer benchmark runner",
     "license": "MIT",
     "version": "1.0.0",
     "exposed-modules": [
         "Benchmark.Runner.Alternative",
+        "Benchmark.Status.Alternative",
+        "Benchmark.State",
+        "Benchmark.Reporting.Alternative",
         "Benchmark.Alternative"
     ],
     "elm-version": "0.19.1 <= v < 0.20.0",
