@@ -1,4 +1,4 @@
-module Benchmark.Runner.Humanize exposing (int, percent)
+module Humanize exposing (int, percent)
 
 
 int : Int -> String
@@ -12,6 +12,19 @@ int =
         >> String.join ","
 
 
+percent : Float -> String
+percent =
+    (*) 10000
+        >> round
+        >> (\a -> toFloat a / 100)
+        >> String.fromFloat
+        >> (\a -> a ++ "%")
+
+
+
+-- utils
+
+
 groupsOf : Int -> List a -> List (List a)
 groupsOf howMany items =
     case List.take howMany items of
@@ -20,12 +33,3 @@ groupsOf howMany items =
 
         xs ->
             xs :: groupsOf howMany (List.drop howMany items)
-
-
-percent : Float -> String
-percent =
-    (*) 10000
-        >> round
-        >> (\a -> toFloat a / 100)
-        >> String.fromFloat
-        >> (\a -> a ++ "%")

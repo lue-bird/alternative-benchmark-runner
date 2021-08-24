@@ -1,33 +1,43 @@
-module Benchmark.Runner.Lue exposing
+module Benchmark.Runner.Alternative exposing
     ( Program, program
-    , Options, programWith, defaultOptions, Theme, darkTheme, lightTheme
+    , programWith, Options, defaultOptions, Theme, darkTheme, lightTheme
+    , Context
     , progressBenchmark
     )
 
 {-| Run benchmarks in the browser.
+
+`import Benchmark.Runner.Alternative as BenchmarkRunner`.
 
 @docs Program, program
 
 
 ## options
 
-@docs Options, programWith, defaultOptions, Theme, darkTheme, lightTheme
+@docs programWith, Options, defaultOptions, Theme, darkTheme, lightTheme
 
 
-## writing your own
+### to write a custom render function
+
+@docs Context
+
+
+## to write your own runner
 
 @docs progressBenchmark
 
 -}
 
 import Benchmark exposing (Benchmark)
-import Benchmark.Runner.Humanize as Humanize
-import Benchmark.Status.Lue as Status exposing (Running(..), Status(..), StructureKind(..), StructureStatus, runsPerSecond, secondsPerRun)
+import Benchmark.Reporting as Report
+import Benchmark.Status.Alternative as Status exposing (Running(..), Status(..), Structure, StructureKind(..), runsPerSecond, secondsPerRun)
 import Browser
+import Color exposing (Color, rgb)
 import Element.WithContext as Ui
 import Element.WithContext.Background as Background
 import Element.WithContext.Font as Font
 import Element.WithContext.Input as UiInput
+import Humanize as Humanize
 import Process
 import Task exposing (Task)
 import Trend.Linear as Trend exposing (Quick, Trend)
@@ -38,21 +48,25 @@ type alias Model =
     }
 
 
-{-| -}
+{-| A benchmark runner program. See [`program`](#program) for how to create one.
+-}
 type alias Program =
     Platform.Program () Model Msg
 
 
-{-| Run benchmarks with [`defaultOptions`](Benchmark.Runner.Alternative#defaultOptions).
+{-| Run benchmarks with [`defaultOptions`](#defaultOptions).
+
+    main =
+        BenchmarkRunner.program suite
+
 -}
 program : Benchmark -> Program
 program suite =
     programWith defaultOptions suite
 
 
-{-| Run benchmarks with custom [`Options`](Benchmark.Runner.Alternative#Options).
+{-| Run benchmarks with custom [`Options`](#Options).
 
-    main : BenchmarkProgram
     main =
         programWith { defaultOptions | theme = Light }
 
@@ -72,23 +86,75 @@ programWith options suite =
         }
 
 
-{-| Opions to start the [`BenchmarkProgram`](Benchmark.Runner.Alternative#BenchmarkProgram) with:
+{-| Options to start the [`BenchmarkProgram`](Benchmark.Runner.Alternative#BenchmarkProgram) with:
 
-  - `theme :`[`Theme`](Benchmark.Runner.Alternative#Theme).
+
+#### `theme`
+
+[`Theme`](#Theme).
+
+
+#### `view`
+
+Write a custom renderer. The theme's background and foreground colors are already set.
+
+    import Benchmark.Runner.Alternative as BenchmarkRunner exposing (defaultOptions)
+    import Benchmark.Status.Alternative exposing (Status(..), StructureKind(..))
+    import Element.WithContext as Ui
+
+    main =
+        BenchmarkRunner.programWith
+            { defaultOptions | view = view }
+            suite
+
+    view status =
+        case status of
+            Running _ _ ->
+                Ui.text "running benchmarks..."
+
+            Finished finished ->
+                viewFinished finished status.name
+
+    viewFinished finished =
+        case finished.structure of
+            Group group ->
+                Ui.column [ Ui.spacing 6 ]
+                    [ Ui.text finished.name
+                    , Ui.column [ Ui.spacing 4 ]
+                        (group |> List.map viewFinished)
+                    ]
+
+            Single { result } ->
+                case result of
+                    Ok trend ->
+                        Ui.row [ Ui.spacing 6 ]
+                            [ Ui.text finished.name
+                            , Ui.text
+                                (runsPerSecond trend
+                                    |> String.fromFloat
+                                )
+                            ]
+
+                    Err _ ->
+                        Ui.text "Failed!"
+
+            ...
 
 -}
 type alias Options =
     { theme : Theme
-    , view : Report.Status -> Ui.Element Context Msg
+    , view : Status -> Ui.Element Context Msg
     }
 
 
+{-| The context of the runner's ui, containing the `theme`.
+-}
 type alias Context =
     { theme : Theme
     }
 
 
-{-| `{ theme = Dark }` and default rendering.
+{-| `{ theme = darkTheme }` and default rendering.
 -}
 defaultOptions : Options
 defaultOptions =
@@ -98,24 +164,29 @@ defaultOptions =
 
 
 {-| Color theme.
+Defaults are [`darkTheme`](#darkTheme) and [`lightTheme`](#lightTheme).
 -}
 type alias Theme =
-    { background : Ui.Color
-    , foreground : Ui.Color
+    { background : Color
+    , foreground : Color
     }
 
 
+{-| White stuff on a black background.
+-}
 darkTheme : Theme
 darkTheme =
-    { background = Ui.rgb 0 0 0
-    , foreground = Ui.rgb 1 1 1
+    { background = rgb 0 0 0
+    , foreground = rgb 1 1 1
     }
 
 
+{-| Black stuff on a white background.
+-}
 lightTheme : Theme
 lightTheme =
-    { background = Ui.rgb 1 1 1
-    , foreground = Ui.rgb 0 0 0
+    { background = rgb 1 1 1
+    , foreground = rgb 0 0 0
     }
 
 
@@ -124,12 +195,10 @@ type Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    case msg of
-        BenchmarkProgress updatedSuite ->
-            ( { model | suite = updatedSuite }
-            , progressBenchmark updatedSuite
-            )
+update (BenchmarkProgress updatedSuite) model =
+    ( { model | suite = updatedSuite }
+    , progressBenchmark updatedSuite
+    )
 
 
 breakForRender : Task x a -> Task x a
@@ -137,6 +206,8 @@ breakForRender task =
     Task.andThen (\_ -> task) (Process.sleep 0)
 
 
+{-| `Benchmark.step` if the benchmark still hasn't received all results.
+-}
 progressBenchmark : Benchmark -> Cmd Msg
 progressBenchmark benchmark =
     if Benchmark.done benchmark then
@@ -154,30 +225,31 @@ viewDocument { theme } { suite } =
     , body =
         [ let
             suiteReport =
-                suite |> Report.fromBenchmark |> Report.fromReport
+                suite |> Report.fromBenchmark |> Status.fromReport
           in
           view suiteReport
             |> Ui.layout
                 { theme = theme }
-                [ Ui.withAttribute (.theme >> .background) Background.color
-                , Ui.withAttribute (.theme >> .foreground) Font.color
+                [ Ui.withAttribute (.theme >> .background) (Background.color << toUiColor)
+                , Ui.withAttribute (.theme >> .foreground) (Font.color << toUiColor)
                 ]
         ]
     }
 
 
-view : Report.Status -> Ui.Element Context msg
+view : Status -> Ui.Element Context msg
 view status =
-    [ Ui.column []
-        [ Ui.text "benchmark report"
+    [ [ "benchmark report"
+            |> Ui.text
             |> Ui.el [ Font.size 32 ]
-        , case status of
-            Running running _ ->
+      , case status of
+            Status.Running running _ ->
                 viewRunningStatus running
 
-            Finished _ ->
+            Status.Finished _ ->
                 Ui.none
-        ]
+      ]
+        |> Ui.column []
     , viewStructure status
     ]
         |> Ui.column
@@ -186,9 +258,9 @@ view status =
             ]
 
 
-viewStructure : Report.Status -> Ui.Element Context msg
-viewStructure report =
-    case report of
+viewStructure : Status -> Ui.Element Context msg
+viewStructure status =
+    case status of
         Running _ running ->
             viewRunningStructure running
 
@@ -196,23 +268,25 @@ viewStructure report =
             viewFinishedStructure finished
 
 
-viewFinishedStructure : Report Finished -> Ui.Element Context msg
+viewFinishedStructure :
+    Status.Structure { result : Status.Result }
+    -> Ui.Element Context msg
 viewFinishedStructure finished =
-    case finished.structure of
+    case finished.structureKind of
         Group group ->
             viewGroup finished.name
                 (group |> List.map viewFinishedStructure)
 
         Single status ->
-            viewFinishedSingle finished.name status
+            viewFinishedSingle finished.name status.result
 
         Series series ->
             viewFinishedSeries finished.name series
 
 
-viewRunningStructure : Report {} -> Ui.Element Context msg
+viewRunningStructure : Status.Structure {} -> Ui.Element Context msg
 viewRunningStructure running =
-    case running.structure of
+    case running.structureKind of
         Group group ->
             viewGroup running.name
                 (group |> List.map viewRunningStructure)
@@ -230,7 +304,7 @@ viewRunningSingle name =
         |> Ui.el [ Ui.paddingXY 0 4 ]
 
 
-viewFinishedSingle : String -> Finished -> Ui.Element context msg
+viewFinishedSingle : String -> Status.Result -> Ui.Element context_ msg
 viewFinishedSingle name finished =
     let
         viewSuccess trend =
@@ -259,37 +333,35 @@ viewFinishedSingle name finished =
             }
                 |> Ui.table [ Ui.spacingXY 10 4 ]
     in
-    (case finished of
-        Ok trend ->
-            viewSuccess trend
-
-        Err _ ->
-            Ui.text "Failed!"
-    )
+    finished
+        |> Result.map viewSuccess
+        |> Result.withDefault ("Failed!" |> Ui.text)
         |> Ui.el
             [ Ui.paddingXY 0 4 ]
 
 
-viewRunningStatus : Status.Running -> Ui.Element Context msg
+viewRunningStatus : Status.Running -> Ui.Element Context msg_
 viewRunningStatus runningStatus =
     let
         viewInfo info =
-            Ui.text info
+            info
+                |> Ui.text
                 |> Ui.el [ Font.size 18 ]
     in
     case runningStatus of
         WarmingJit ->
-            viewInfo "Warming JIT"
+            "Warming JIT" |> viewInfo
 
         FindingSampleSize ->
-            viewInfo "Finding sample size"
+            "Finding sample size" |> viewInfo
 
         CollectingSamples progress ->
-            Ui.row [ Ui.spacing 10 ]
-                [ viewInfo "collecting samples"
-                , viewRelation progress
+            [ "collecting samples" |> viewInfo
+            , progress
+                |> viewRelation
                     [ Ui.width (Ui.px 110), Ui.height Ui.fill ]
-                ]
+            ]
+                |> Ui.row [ Ui.spacing 10 ]
 
 
 viewGroup :
@@ -297,23 +369,23 @@ viewGroup :
     -> List (Ui.Element Context msg)
     -> Ui.Element Context msg
 viewGroup name structures =
-    Ui.column [ Ui.spacing 12 ]
-        [ viewHeadline name
-        , structures
-            |> Ui.column
-                [ Ui.paddingXY 26 0, Ui.spacing 13 ]
-        ]
+    [ viewHeadline name
+    , structures
+        |> Ui.column
+            [ Ui.paddingXY 26 0, Ui.spacing 13 ]
+    ]
+        |> Ui.column [ Ui.spacing 12 ]
 
 
 viewFinishedSeries :
     String
     -> List { name : String, result : Status.Result }
-    -> Ui.Element Context msg
+    -> Ui.Element Context msg_
 viewFinishedSeries name series =
     let
         successes =
             series
-                |> List.map
+                |> List.filterMap
                     (\sub ->
                         case sub.result of
                             Ok trend ->
@@ -342,14 +414,15 @@ viewFinishedSeries name series =
               , width = Ui.shrink
               , view =
                     \sub ->
-                        Ui.text sub.name
+                        sub.name
+                            |> Ui.text
                             |> Ui.el [ Ui.alignBottom ]
               }
             , let
                 maxSecondPerRun =
                     List.maximum
                         (successes
-                            |> List.map secondsPerRun
+                            |> List.map (.trend >> secondsPerRun)
                         )
                         |> Maybe.withDefault 0
               in
@@ -357,9 +430,9 @@ viewFinishedSeries name series =
               , width = Ui.minimum 130 Ui.shrink
               , view =
                     \{ trend } ->
-                        viewRelation
-                            (secondsPerRun trend / maxSecondPerRun)
-                            [ Ui.width Ui.fill, Ui.height Ui.fill ]
+                        (secondsPerRun trend / maxSecondPerRun)
+                            |> viewRelation
+                                [ Ui.width Ui.fill, Ui.height Ui.fill ]
               }
             , { header = viewInfoHeader "runs / second"
               , width = Ui.shrink
@@ -400,35 +473,36 @@ viewFinishedSeries name series =
 viewRunningSeries :
     String
     -> List { name : String }
-    -> Ui.Element context msg
+    -> Ui.Element context_ msg_
 viewRunningSeries name series =
-    Ui.column [ Ui.spacing 8 ]
-        [ viewHeadline name
-        , series
-            |> List.map (.name >> Ui.text)
-            |> Ui.column [ Ui.paddingXY 20 0 ]
-        ]
+    [ viewHeadline name
+    , series
+        |> List.map (.name >> Ui.text)
+        |> Ui.column [ Ui.paddingXY 20 0 ]
+    ]
+        |> Ui.column [ Ui.spacing 8 ]
 
 
 {-| View a percentage as a horizontal bar. The argument must be between 0 and 1.
 
     halfHalf =
-        viewRelation 0.5
-            [ width fill, height fill ]
+        0.5
+            |> viewRelation
+                [ width fill, height fill ]
 
 -}
 viewRelation :
-    Float
-    -> List (Ui.Attribute Context msg)
+    List (Ui.Attribute Context msg)
+    -> Float
     -> Ui.Element Context msg
-viewRelation percent attrs =
+viewRelation attrs percent =
     let
         per100 =
             percent * 100 |> floor
 
         bar width =
             Ui.el
-                [ Ui.withAttribute (.theme >> .foreground) Background.color
+                [ Ui.withAttribute (.theme >> .foreground) (Background.color << toUiColor)
                 , Ui.height Ui.fill
                 , Ui.width width
                 ]
@@ -442,7 +516,7 @@ viewRelation percent attrs =
         |> Ui.row attrs
 
 
-viewInfoHeader : String -> Ui.Element context msg
+viewInfoHeader : String -> Ui.Element context_ msg_
 viewInfoHeader name =
     Ui.text name
         |> Ui.el
@@ -451,8 +525,21 @@ viewInfoHeader name =
             ]
 
 
-viewHeadline : String -> Ui.Element context msg
+viewHeadline : String -> Ui.Element context_ msg_
 viewHeadline name =
     name
         |> Ui.text
         |> Ui.el [ Font.size 23 ]
+
+
+
+-- utils
+
+
+toUiColor : Color -> Ui.Color
+toUiColor color =
+    let
+        { red, green, blue, alpha } =
+            color |> Color.toRgba
+    in
+    Ui.rgba red green blue alpha
