@@ -30,17 +30,16 @@ module Benchmark.Runner.Alternative exposing
 
 import Benchmark exposing (Benchmark)
 import Benchmark.Reporting as Report
-import Benchmark.Status.Alternative as Status exposing (Running(..), Status(..), Structure, StructureKind(..), runsPerSecond, secondsPerRun)
+import Benchmark.Status.Alternative as Status exposing (Running(..), Status(..), StructureKind(..), runsPerSecond, secondsPerRun)
 import Browser
 import Color exposing (Color, rgb)
 import Element.WithContext as Ui
 import Element.WithContext.Background as Background
 import Element.WithContext.Font as Font
-import Element.WithContext.Input as UiInput
 import Humanize as Humanize
 import Process
 import Task exposing (Task)
-import Trend.Linear as Trend exposing (Quick, Trend)
+import Trend.Linear as Trend
 
 
 type alias Model =
