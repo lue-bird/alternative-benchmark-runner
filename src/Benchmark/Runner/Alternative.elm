@@ -236,7 +236,7 @@ viewDocument { theme } { suite } =
     }
 
 
-view : Status -> Ui.Element Context msg
+view : Status -> Ui.Element Context msg_
 view status =
     [ [ "benchmark report"
             |> Ui.text
@@ -257,7 +257,7 @@ view status =
             ]
 
 
-viewStructure : Status -> Ui.Element Context msg
+viewStructure : Status -> Ui.Element Context msg_
 viewStructure status =
     case status of
         Running _ running ->
@@ -269,7 +269,7 @@ viewStructure status =
 
 viewFinishedStructure :
     Status.Structure { result : Status.Result }
-    -> Ui.Element Context msg
+    -> Ui.Element Context msg_
 viewFinishedStructure finished =
     case finished.structureKind of
         Group group ->
@@ -283,7 +283,7 @@ viewFinishedStructure finished =
             viewFinishedSeries finished.name series
 
 
-viewRunningStructure : Status.Structure {} -> Ui.Element Context msg
+viewRunningStructure : Status.Structure {} -> Ui.Element Context msg_
 viewRunningStructure running =
     case running.structureKind of
         Group group ->
@@ -297,13 +297,13 @@ viewRunningStructure running =
             viewRunningSeries running.name series
 
 
-viewRunningSingle : String -> Ui.Element context msg
+viewRunningSingle : String -> Ui.Element context_ msg_
 viewRunningSingle name =
     viewHeadline name
         |> Ui.el [ Ui.paddingXY 0 4 ]
 
 
-viewFinishedSingle : String -> Status.Result -> Ui.Element context_ msg
+viewFinishedSingle : String -> Status.Result -> Ui.Element context_ msg_
 viewFinishedSingle name finished =
     let
         viewSuccess trend =

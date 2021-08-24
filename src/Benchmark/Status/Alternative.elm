@@ -77,14 +77,14 @@ type alias Result =
 
 {-| Predict the amount of runs / 1 second.
 -}
-runsPerSecond : Trend a -> Float
+runsPerSecond : Trend a_ -> Float
 runsPerSecond trend =
     Trend.predictX (Trend.line trend) 1000
 
 
 {-| Predict the amount of seconds / 1 run.
 -}
-secondsPerRun : Trend a -> Float
+secondsPerRun : Trend a_ -> Float
 secondsPerRun trend =
     1 / runsPerSecond trend
 
