@@ -13,9 +13,36 @@ when inside the directory containing this file.
 
 import Review.Rule exposing (Rule)
 import NoUnused.Dependencies
+import OnlyAllSingleUseTypeVarsEndWith_
+import NoSinglePatternCase
+import NoLeftPizza
+import NoExposingEverything
+import NoImportingEverything
+import NoMissingTypeAnnotation
+import NoForbiddenWords
+import NoBooleanCase
+import NoPrematureLetComputation
+import LinksPointToExistingPackageMembers
 
 
 config : List Rule
 config =
     [ NoUnused.Dependencies.rule
+    , OnlyAllSingleUseTypeVarsEndWith_.rule
+    , NoSinglePatternCase.rule
+        (NoSinglePatternCase.fixInArgument
+            |> NoSinglePatternCase.ifAsPatternRequired
+                (NoSinglePatternCase.fixInLetInstead
+                    |> NoSinglePatternCase.andIfNoLetExists
+                        NoSinglePatternCase.createNewLet
+                )
+        )
+    , NoLeftPizza.rule NoLeftPizza.Any
+    , NoExposingEverything.rule
+    , NoImportingEverything.rule [ "Nats", "Arguments" ]
+    , NoMissingTypeAnnotation.rule
+    , NoForbiddenWords.rule [ "TODO", "todo" ]
+    , NoBooleanCase.rule
+    , NoPrematureLetComputation.rule
+    , LinksPointToExistingPackageMembers.rule
     ]
