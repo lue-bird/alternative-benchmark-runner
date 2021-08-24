@@ -229,8 +229,10 @@ viewDocument { theme } { suite } =
           view suiteReport
             |> Ui.layout
                 { theme = theme }
-                [ Ui.withAttribute (.theme >> .background) (Background.color << toUiColor)
-                , Ui.withAttribute (.theme >> .foreground) (Font.color << toUiColor)
+                [ Ui.withAttribute (.theme >> .background)
+                    (Background.color << toUiColor)
+                , Ui.withAttribute (.theme >> .foreground)
+                    (Font.color << toUiColor)
                 ]
         ]
     }
@@ -309,18 +311,20 @@ viewFinishedSingle name finished =
         viewSuccess trend =
             { data = [ () ] -- 1 row below the headers
             , columns =
-                [ { header = viewHeadline name
+                [ { header = name |> viewHeadline
                   , width = Ui.shrink
                   , view = \_ -> Ui.none
                   }
-                , { header = viewInfoHeader "runs / second"
+                , { header = "runs / second" |> viewInfoHeader
                   , width = Ui.shrink
                   , view =
                         \_ ->
-                            (runsPerSecond trend |> floor |> Humanize.int)
+                            runsPerSecond trend
+                                |> floor
+                                |> Humanize.int
                                 |> Ui.text
                   }
-                , { header = viewInfoHeader "goodness of fit"
+                , { header = "goodness of fit" |> viewInfoHeader
                   , width = Ui.shrink
                   , view =
                         \_ ->
@@ -368,7 +372,7 @@ viewGroup :
     -> List (Ui.Element Context msg)
     -> Ui.Element Context msg
 viewGroup name structures =
-    [ viewHeadline name
+    [ name |> viewHeadline
     , structures
         |> Ui.column
             [ Ui.paddingXY 26 0, Ui.spacing 13 ]
@@ -499,18 +503,19 @@ viewRelation attrs percent =
         per100 =
             percent * 100 |> floor
 
-        bar width =
+        bar width barAttrs =
             Ui.el
-                [ Ui.withAttribute (.theme >> .foreground) (Background.color << toUiColor)
-                , Ui.height Ui.fill
-                , Ui.width width
-                ]
+                ([ Ui.withAttribute (.theme >> .foreground)
+                    (Background.color << toUiColor)
+                 , Ui.height Ui.fill
+                 , Ui.width width
+                 ]
+                    ++ barAttrs
+                )
                 Ui.none
     in
-    [ bar (Ui.fillPortion per100)
-        |> Ui.el [ Ui.alpha 0.6 ]
-    , bar (Ui.fillPortion (100 - per100))
-        |> Ui.el [ Ui.alpha 0.13 ]
+    [ bar (Ui.fillPortion per100) [ Ui.alpha 0.6 ]
+    , bar (Ui.fillPortion (100 - per100)) [ Ui.alpha 0.13 ]
     ]
         |> Ui.row attrs
 
