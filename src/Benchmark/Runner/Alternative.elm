@@ -508,7 +508,7 @@ viewRunningSeries name series =
         |> Ui.column [ Ui.spacing 8 ]
 
 
-viewRunsPerSecondColumn : Ui.Column context_ { record | trend : Trend Quick } msg_
+viewRunsPerSecondColumn : Ui.Column context_ { record_ | trend : Trend Quick } msg_
 viewRunsPerSecondColumn =
     { header = "runs / second" |> viewInfoHeader
     , width = Ui.shrink
@@ -521,7 +521,7 @@ viewRunsPerSecondColumn =
     }
 
 
-goodnessOfFitColumn : Ui.Column context_ { record | trend : Trend Quick } msg_
+goodnessOfFitColumn : Ui.Column context_ { record_ | trend : Trend Quick } msg_
 goodnessOfFitColumn =
     { header = "goodness of fit" |> viewInfoHeader
     , width = Ui.shrink
