@@ -325,27 +325,12 @@ Return `1` if all benchmarks have failed or no actual benchmarks exist (only emp
 -}
 lowestGoodnessOfFit : Status.Structure { result : Status.Result } -> Float
 lowestGoodnessOfFit finished =
-    case finished.structureKind of
-        Single { result } ->
-            result
-                |> Result.map Trend.goodnessOfFit
-                |> Result.withDefault 1
-
-        Group group ->
-            group
-                |> List.map lowestGoodnessOfFit
-                |> List.minimum
-                |> Maybe.withDefault 1
-
-        Series series ->
-            series
-                |> List.filterMap
-                    (.result
-                        >> Result.map (Trend.goodnessOfFit >> Just)
-                        >> Result.withDefault Nothing
-                    )
-                |> List.minimum
-                |> Maybe.withDefault 1
+    finished
+        |> Status.results
+        |> List.filterMap Result.toMaybe
+        |> List.map Trend.goodnessOfFit
+        |> List.minimum
+        |> Maybe.withDefault 1
 
 
 viewFinishedStructure :

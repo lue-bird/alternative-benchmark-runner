@@ -2,7 +2,8 @@ module Benchmark.Status.Alternative exposing
     ( fromReport
     , Status(..)
     , Running(..)
-    , Result, runsPerSecond, secondsPerRun
+    , Result
+    , runsPerSecond, secondsPerRun, results
     , Structure, StructureKind(..)
     )
 
@@ -31,7 +32,12 @@ the status is
 
 ## when `Finished`
 
-@docs Result, runsPerSecond, secondsPerRun
+@docs Result
+
+
+### utils
+
+@docs runsPerSecond, secondsPerRun, results
 
 
 ## structure
@@ -87,6 +93,41 @@ runsPerSecond trend =
 secondsPerRun : Trend a_ -> Float
 secondsPerRun trend =
     1 / runsPerSecond trend
+
+
+{-| Collect all results.
+
+    lowestGoodnessOfFit =
+        results
+            >> List.filterMap Result.toMaybe
+            >> List.map Trend.goodnessOfFit
+            >> List.minimum
+            >> Maybe.withDefault 1
+
+    errors =
+        results
+            >> List.filterMap
+                (\result ->
+                    case result of
+                        Err err ->
+                            Just err
+
+                        Ok _ ->
+                            Nothing
+                )
+
+-}
+results : Structure { result : Result } -> List Result
+results finished =
+    case finished.structureKind of
+        Single { result } ->
+            [ result ]
+
+        Group group ->
+            group |> List.concatMap results
+
+        Series series ->
+            series |> List.map .result
 
 
 {-| The structure type of a specific `Benchmark`.
