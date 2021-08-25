@@ -268,9 +268,7 @@ viewStructure status =
         Finished finished ->
             [ let
                 minimumGoodnessOfFit =
-                    --lowestGoodnessOfFit finished
-                    --todo rm test value
-                    0.84
+                    lowestGoodnessOfFit finished
               in
               if minimumGoodnessOfFit < 0.85 then
                 [ "There is high interference on the system."
@@ -602,7 +600,7 @@ viewRelation attrs percent =
     [ bar (Ui.fillPortion per100) [ Ui.alpha 0.58 ]
     , bar (Ui.fillPortion (100 - per100)) [ Ui.alpha 0.12 ]
     ]
-        |> Ui.row attrs
+        |> Ui.row ([ Ui.paddingXY 0 4 ] ++ attrs)
 
 
 viewInfoHeader : String -> Ui.Element context_ msg_
@@ -611,6 +609,7 @@ viewInfoHeader name =
         |> Ui.el
             [ Font.size 17
             , Ui.paddingXY 0 3
+            , Ui.alpha 0.7
             ]
 
 
