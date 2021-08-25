@@ -26,10 +26,14 @@ percent =
 
 
 groupsOf : Int -> List a -> List (List a)
-groupsOf howMany items =
-    case List.take howMany items of
+groupsOf groupSize xs =
+    case List.take groupSize xs of
         [] ->
             []
 
-        xs ->
-            xs :: groupsOf howMany (List.drop howMany items)
+        firstGroup ->
+            firstGroup
+                :: (xs
+                        |> List.drop groupSize
+                        |> groupsOf groupSize
+                   )
