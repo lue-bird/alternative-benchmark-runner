@@ -1,13 +1,16 @@
 ## alternative-benchmark-runner
 
-Extending [elm-explorations/benchmark](https://package.elm-lang.org/packages/elm-explorations/benchmark/latest/).
+Extends [elm-explorations/benchmark](https://package.elm-lang.org/packages/elm-explorations/benchmark/latest/):
 
-- compare _multiple_ benchmarks
-- run in a cleaner interface 
+- [compare _multiple_ benchmarks](https://github.com/elm-explorations/benchmark/issues/2)
+- run in a cleaner interface
+    - dark and light mode
+    - allows you to write your own render function
 
 ![Benchmark example](https://raw.githubusercontent.com/lue-bird/alternative-benchmark-runner/master/benchmark-example.png)
 
-- compatible with all your existing benchmarks, simply replace `Benchmark.Runner.program` with `Benchmark.Runner.Alternative.program`
+- [warn about low goodness of fit](https://github.com/elm-explorations/benchmark/issues/4)
+- compatible with all your existing benchmarks. Simply replace `Benchmark.Runner.program` with `Benchmark.Runner.Alternative.program`
 
 ```elm
 import Benchmark exposing (describe)
@@ -49,5 +52,3 @@ main =
         { defaultOptions | theme = lightTheme }
         suite
 ```
-- dark and light mode
-- allows you to write your own render function
