@@ -39,7 +39,7 @@ import Element.WithContext.Font as Font
 import Humanize as Humanize
 import Process
 import Task exposing (Task)
-import Trend.Linear as Trend
+import Trend.Linear as Trend exposing (Quick, Trend)
 
 
 type alias Model =
@@ -242,7 +242,7 @@ view : Status -> Ui.Element Context msg_
 view status =
     [ [ "benchmark report"
             |> Ui.text
-            |> Ui.el [ Font.size 32 ]
+            |> Ui.el [ Font.size 29 ]
       , case status of
             Status.Running running _ ->
                 viewRunningStatus running
@@ -250,7 +250,7 @@ view status =
             Status.Finished _ ->
                 Ui.none
       ]
-        |> Ui.column []
+        |> Ui.column [ Ui.spacing 5 ]
     , viewStructure status
     ]
         |> Ui.column
@@ -266,7 +266,88 @@ viewStructure status =
             viewRunningStructure running
 
         Finished finished ->
-            viewFinishedStructure finished
+            [ let
+                minimumGoodnessOfFit =
+                    --lowestGoodnessOfFit finished
+                    --todo rm test value
+                    0.84
+              in
+              if minimumGoodnessOfFit < 0.85 then
+                [ "There is high interference on the system."
+                , " Don't trust these results."
+                , " Close resource-intensive tabs or programs (Slack, Spotify are typical candidates) and run again."
+                , [ " If that doesn't solve it, show up in #elm-benchmark on the Elm Slack and we'll try to get you sorted out."
+                  , " There's probably some error this tool can't detect, or we need to account for your system setup in the sampling approach."
+                  ]
+                    |> String.concat
+                ]
+                    |> List.map (Ui.paragraph [] << List.singleton << Ui.text)
+                    |> Ui.column [ Ui.spacing 13 ]
+
+              else if minimumGoodnessOfFit < 0.95 then
+                [ "There may be interference on the system."
+                , " Consider closing resource-intensive programs (Slack, Spotify are typical candidates) or tabs and run again."
+                ]
+                    |> List.map (Ui.paragraph [] << List.singleton << Ui.text)
+                    |> Ui.column [ Ui.spacing 13 ]
+
+              else
+                Ui.none
+            , viewFinishedStructure finished
+            ]
+                |> Ui.column [ Ui.spacing 20 ]
+
+
+viewRunningStatus : Status.Running -> Ui.Element Context msg_
+viewRunningStatus runningStatus =
+    let
+        viewInfo info =
+            info
+                |> Ui.text
+                |> Ui.el [ Font.size 18 ]
+    in
+    case runningStatus of
+        WarmingJit ->
+            "Warming JIT" |> viewInfo
+
+        FindingSampleSize ->
+            "Finding sample size" |> viewInfo
+
+        CollectingSamples progress ->
+            [ "collecting samples" |> viewInfo
+            , progress
+                |> viewRelation
+                    [ Ui.width (Ui.px 111), Ui.height Ui.fill ]
+            ]
+                |> Ui.row [ Ui.spacing 10 ]
+
+
+{-| Find the lowest goodness of fit.
+Return `1` if all benchmarks have failed or no actual benchmarks exist (only empty groups & series).
+-}
+lowestGoodnessOfFit : Status.Structure { result : Status.Result } -> Float
+lowestGoodnessOfFit finished =
+    case finished.structureKind of
+        Single { result } ->
+            result
+                |> Result.map Trend.goodnessOfFit
+                |> Result.withDefault 1
+
+        Group group ->
+            group
+                |> List.map lowestGoodnessOfFit
+                |> List.minimum
+                |> Maybe.withDefault 1
+
+        Series series ->
+            series
+                |> List.filterMap
+                    (.result
+                        >> Result.map (Trend.goodnessOfFit >> Just)
+                        >> Result.withDefault Nothing
+                    )
+                |> List.minimum
+                |> Maybe.withDefault 1
 
 
 viewFinishedStructure :
@@ -309,62 +390,31 @@ viewFinishedSingle : String -> Status.Result -> Ui.Element context_ msg_
 viewFinishedSingle name finished =
     let
         viewSuccess trend =
-            { data = [ () ] -- 1 row below the headers
+            { data = [ { trend = trend } ] -- 1 row below the headers
             , columns =
-                [ { header = name |> viewHeadline
-                  , width = Ui.shrink
-                  , view = \_ -> Ui.none
-                  }
-                , { header = "runs / second" |> viewInfoHeader
+                [ { header = Ui.none
                   , width = Ui.shrink
                   , view =
                         \_ ->
-                            runsPerSecond trend
-                                |> floor
-                                |> Humanize.int
-                                |> Ui.text
+                            name
+                                |> viewHeadline
+                                |> Ui.el [ Ui.centerY ]
                   }
-                , { header = "goodness of fit" |> viewInfoHeader
-                  , width = Ui.shrink
-                  , view =
-                        \_ ->
-                            Trend.goodnessOfFit trend
-                                |> Humanize.percent
-                                |> Ui.text
-                  }
+                , viewRunsPerSecondColumn
+                , goodnessOfFitColumn
                 ]
             }
-                |> Ui.table [ Ui.spacingXY 10 4 ]
+                |> Ui.table [ Ui.spacingXY 16 4, Ui.paddingXY 0 4 ]
+
+        viewFailure =
+            [ name |> viewHeadline
+            , "Failed" |> Ui.text
+            ]
+                |> Ui.row [ Ui.spacingXY 16 0 ]
     in
     finished
         |> Result.map viewSuccess
-        |> Result.withDefault ("Failed!" |> Ui.text)
-        |> Ui.el
-            [ Ui.paddingXY 0 4 ]
-
-
-viewRunningStatus : Status.Running -> Ui.Element Context msg_
-viewRunningStatus runningStatus =
-    let
-        viewInfo info =
-            info
-                |> Ui.text
-                |> Ui.el [ Font.size 18 ]
-    in
-    case runningStatus of
-        WarmingJit ->
-            "Warming JIT" |> viewInfo
-
-        FindingSampleSize ->
-            "Finding sample size" |> viewInfo
-
-        CollectingSamples progress ->
-            [ "collecting samples" |> viewInfo
-            , progress
-                |> viewRelation
-                    [ Ui.width (Ui.px 110), Ui.height Ui.fill ]
-            ]
-                |> Ui.row [ Ui.spacing 10 ]
+        |> Result.withDefault viewFailure
 
 
 viewGroup :
@@ -375,7 +425,9 @@ viewGroup name structures =
     [ name |> viewHeadline
     , structures
         |> Ui.column
-            [ Ui.paddingXY 26 0, Ui.spacing 13 ]
+            [ Ui.paddingEach { edges | left = 26 }
+            , Ui.spacing 13
+            ]
     ]
         |> Ui.column [ Ui.spacing 12 ]
 
@@ -413,13 +465,13 @@ viewFinishedSeries name series =
     in
     [ { data = successes
       , columns =
-            [ { header = viewHeadline name
+            [ { header = name |> viewHeadline
               , width = Ui.shrink
               , view =
                     \sub ->
                         sub.name
                             |> Ui.text
-                            |> Ui.el [ Ui.alignBottom ]
+                            |> Ui.el [ Ui.centerY ]
               }
             , let
                 maxSecondPerRun =
@@ -429,36 +481,23 @@ viewFinishedSeries name series =
                         )
                         |> Maybe.withDefault 0
               in
-              { header = viewInfoHeader "time / run"
-              , width = Ui.minimum 130 Ui.shrink
+              { header = "time / run" |> viewInfoHeader
+              , width = Ui.minimum 129 Ui.shrink
               , view =
                     \{ trend } ->
                         (secondsPerRun trend / maxSecondPerRun)
                             |> viewRelation
                                 [ Ui.width Ui.fill, Ui.height Ui.fill ]
               }
-            , { header = viewInfoHeader "runs / second"
-              , width = Ui.shrink
-              , view =
-                    \{ trend } ->
-                        (runsPerSecond trend |> floor |> Humanize.int)
-                            |> Ui.text
-              }
-            , { header = viewInfoHeader "goodness of fit"
-              , width = Ui.shrink
-              , view =
-                    \{ trend } ->
-                        Trend.goodnessOfFit trend
-                            |> Humanize.percent
-                            |> Ui.text
-              }
+            , viewRunsPerSecondColumn
+            , goodnessOfFitColumn
             ]
       }
         |> Ui.table [ Ui.spacingXY 16 6 ]
     , { data = failures
       , columns =
-            [ \subName -> Ui.text subName
-            , \_ -> Ui.text "Failed!"
+            [ \subName -> subName |> Ui.text
+            , \_ -> "Failed" |> Ui.text
             ]
                 |> List.map
                     (\view_ ->
@@ -486,12 +525,58 @@ viewRunningSeries name series =
         |> Ui.column [ Ui.spacing 8 ]
 
 
+viewRunsPerSecondColumn : Ui.Column context_ { record | trend : Trend Quick } msg_
+viewRunsPerSecondColumn =
+    { header = "runs / second" |> viewInfoHeader
+    , width = Ui.shrink
+    , view =
+        \{ trend } ->
+            runsPerSecond trend
+                |> floor
+                |> Humanize.int
+                |> Ui.text
+    }
+
+
+goodnessOfFitColumn : Ui.Column context_ { record | trend : Trend Quick } msg_
+goodnessOfFitColumn =
+    { header = "goodness of fit" |> viewInfoHeader
+    , width = Ui.shrink
+    , view =
+        \{ trend } ->
+            -- https://package.elm-lang.org/packages/elm-explorations/benchmark/latest#faq
+            let
+                goodnessOfFit =
+                    Trend.goodnessOfFit trend
+
+                goodnessOfFitPercent =
+                    goodnessOfFit |> Humanize.percent
+            in
+            if goodnessOfFit < 0.85 then
+                [ goodnessOfFitPercent
+                , ", highly influenced"
+                ]
+                    |> String.concat
+                    |> Ui.text
+
+            else if goodnessOfFit < 0.95 then
+                [ goodnessOfFitPercent
+                , ", slightly influenced"
+                ]
+                    |> String.concat
+                    |> Ui.text
+
+            else
+                goodnessOfFitPercent
+                    |> Ui.text
+                    |> Ui.el [ Ui.alpha 0.7 ]
+    }
+
+
 {-| View a percentage as a horizontal bar. The argument must be between 0 and 1.
 
     halfHalf =
-        0.5
-            |> viewRelation
-                [ width fill, height fill ]
+        0.5 |> viewRelation [ width fill, height fill ]
 
 -}
 viewRelation :
@@ -514,8 +599,8 @@ viewRelation attrs percent =
                 )
                 Ui.none
     in
-    [ bar (Ui.fillPortion per100) [ Ui.alpha 0.6 ]
-    , bar (Ui.fillPortion (100 - per100)) [ Ui.alpha 0.13 ]
+    [ bar (Ui.fillPortion per100) [ Ui.alpha 0.58 ]
+    , bar (Ui.fillPortion (100 - per100)) [ Ui.alpha 0.12 ]
     ]
         |> Ui.row attrs
 
@@ -547,3 +632,8 @@ toUiColor color =
             color |> Color.toRgba
     in
     Ui.rgba red green blue alpha
+
+
+edges : { right : number, top : number, left : number, bottom : number }
+edges =
+    { right = 0, top = 0, left = 0, bottom = 0 }
