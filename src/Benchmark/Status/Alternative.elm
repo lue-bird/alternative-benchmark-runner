@@ -1,15 +1,15 @@
 module Benchmark.Status.Alternative exposing
-    ( fromReport
+    ( fromReport, fromBenchmark
     , Status(..)
     , Running(..)
     , Result
-    , runsPerSecond, secondsPerRun, results
+    , runsPerSecond, results
     , Structure, StructureKind(..)
     )
 
 {-| Alternative way of representing the status of a benchmark.
 
-@docs fromReport
+@docs fromReport, fromBenchmark
 
 Instead of
 
@@ -37,7 +37,7 @@ the status is
 
 ### utils
 
-@docs runsPerSecond, secondsPerRun, results
+@docs runsPerSecond, results
 
 
 ## structure
@@ -46,6 +46,7 @@ the status is
 
 -}
 
+import Benchmark exposing (Benchmark)
 import Benchmark.Reporting as Report
 import Benchmark.Status as Status
 import Trend.Linear as Trend exposing (Quick, Trend)
@@ -86,13 +87,6 @@ type alias Result =
 runsPerSecond : Trend a_ -> Float
 runsPerSecond trend =
     Trend.predictX (Trend.line trend) 1000
-
-
-{-| Predict the amount of seconds / 1 run.
--}
-secondsPerRun : Trend a_ -> Float
-secondsPerRun trend =
-    1 / runsPerSecond trend
 
 
 {-| Collect all results.
@@ -160,6 +154,19 @@ type alias Structure status =
     { name : String
     , structureKind : StructureKind status
     }
+
+
+{-| Report the [`Status`](#Status) of a benchmark. Short for
+
+    benchmark
+        |> Report.fromBenchmark
+        |> Benchmark.Status.Alternative.fromReport
+
+-}
+fromBenchmark : Benchmark -> Status
+fromBenchmark benchmark =
+    Report.fromBenchmark benchmark
+        |> fromReport
 
 
 {-| Convert a `Benchmark.Reporting.Report` to a [`Benchmark.Status.Alternative.Status`](#Status).
