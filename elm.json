@@ -1,7 +1,7 @@
 {
     "type": "package",
     "name": "lue-bird/elm-alternative-benchmark-runner",
-    "summary": "nicer benchmark runner",
+    "summary": "run benchmarks in a clean ui & more (multi-compare, ...)",
     "license": "MIT",
     "version": "1.0.0",
     "exposed-modules": [
