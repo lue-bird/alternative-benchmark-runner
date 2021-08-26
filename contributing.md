@@ -6,7 +6,7 @@
 ## you can
 
 - share your thoughts
-- add operations that might be useful
+- add warnings and functions that might be useful
 
 ## commits
 look like this:
