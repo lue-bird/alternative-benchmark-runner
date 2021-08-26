@@ -130,10 +130,10 @@ results finished =
   - `Series`: `Benchmark.compare`, `Benchmark.scale`, [`Benchmark.Alternative.rank`](Benchmark-Alternative#rank)
   - `Group`: `Benchmark.describe`
 
-The status of
+–
 
-  - a running benchmark is `StructureKind {}`
-  - a finished benchmark is `StructureKind { result : Result }`, see [`Result`](#Result)
+  - when running: `StructureKind {}`
+  - when finished: `StructureKind { result : Result }`, see [`Result`](#Result)
 
 -}
 type StructureKind status
@@ -144,10 +144,8 @@ type StructureKind status
 
 {-| The name and structure of a specific `Benchmark`.
 
-The status of
-
-  - a running benchmark is `Structure {}`
-  - a finished benchmark is `Structure { result : Result }`, see [`Result`](#Result)
+  - when running: `Structure {}`
+  - when finished: `Structure { result : Result }`, see [`Result`](#Result)
 
 -}
 type alias Structure status =
