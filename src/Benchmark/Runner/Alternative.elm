@@ -240,22 +240,22 @@ viewDocument { theme } { suite } =
 
 view : Status -> Ui.Element Context msg_
 view status =
-    [ [ "benchmark report"
-            |> Ui.text
-            |> Ui.el [ Font.size 29 ]
-      , case status of
-            Status.Running running _ ->
-                viewRunningStatus running
+    [ "benchmark report"
+        |> Ui.text
+        |> Ui.el [ Font.size 29 ]
+    , case status of
+        Status.Running running _ ->
+            [ viewRunningStatus running
+            , viewStructure status
+            ]
+                |> Ui.column [ Ui.spacing 20 ]
 
-            Status.Finished _ ->
-                Ui.none
-      ]
-        |> Ui.column [ Ui.spacing 5 ]
-    , viewStructure status
+        Status.Finished _ ->
+            viewStructure status
     ]
         |> Ui.column
             [ Ui.paddingXY 40 45
-            , Ui.spacing 20
+            , Ui.spacing 5
             ]
 
 
@@ -267,9 +267,16 @@ viewStructure status =
 
         Finished finished ->
             [ let
+                minimumGoodnessOfFit : Float
                 minimumGoodnessOfFit =
-                    lowestGoodnessOfFit finished
+                    finished
+                        |> Status.results
+                        |> List.filterMap Result.toMaybe
+                        |> List.map Trend.goodnessOfFit
+                        |> List.minimum
+                        |> Maybe.withDefault 1
               in
+              -- https://github.com/elm-explorations/benchmark/issues/4#issuecomment-388401035
               if minimumGoodnessOfFit < 0.85 then
                 [ "There is high interference on the system."
                 , " Don't trust these results."
@@ -320,19 +327,6 @@ viewRunningStatus runningStatus =
                 |> Ui.row [ Ui.spacing 10 ]
 
 
-{-| Find the lowest goodness of fit.
-Return `1` if all benchmarks have failed or no actual benchmarks exist (only empty groups & series).
--}
-lowestGoodnessOfFit : Status.Structure { result : Status.Result } -> Float
-lowestGoodnessOfFit finished =
-    finished
-        |> Status.results
-        |> List.filterMap Result.toMaybe
-        |> List.map Trend.goodnessOfFit
-        |> List.minimum
-        |> Maybe.withDefault 1
-
-
 viewFinishedStructure :
     Status.Structure { result : Status.Result }
     -> Ui.Element Context msg_
@@ -375,29 +369,39 @@ viewFinishedSingle name finished =
         viewSuccess trend =
             { data = [ { trend = trend } ] -- 1 row below the headers
             , columns =
-                [ { header = Ui.none
-                  , width = Ui.shrink
-                  , view =
-                        \_ ->
-                            name
-                                |> viewHeadline
-                                |> Ui.el [ Ui.centerY ]
-                  }
-                , viewRunsPerSecondColumn
+                [ viewRunsPerSecondColumn
                 , goodnessOfFitColumn
                 ]
             }
-                |> Ui.table [ Ui.spacingXY 16 4, Ui.paddingXY 0 4 ]
+                |> Ui.table
+                    [ Ui.spacingXY 16 4
+                    , Ui.paddingXY 0 4
+                    ]
 
         viewFailure =
-            [ name |> viewHeadline
-            , "Failed" |> Ui.text
-            ]
-                |> Ui.row [ Ui.spacingXY 16 0 ]
+            "Failed" |> Ui.text
     in
-    finished
+    [ name
+        |> viewHeadline
+        |> Ui.el [ Ui.centerY ]
+    , finished
         |> Result.map viewSuccess
         |> Result.withDefault viewFailure
+    ]
+        |> Ui.row [ Ui.spacingXY 16 0 ]
+
+
+viewRunsPerSecondColumn : Ui.Column context_ { record_ | trend : Trend Quick } msg_
+viewRunsPerSecondColumn =
+    { header = "runs / second" |> viewInfoHeader
+    , width = Ui.shrink
+    , view =
+        \{ trend } ->
+            runsPerSecond trend
+                |> floor
+                |> Humanize.int
+                |> Ui.text
+    }
 
 
 viewGroup :
@@ -432,7 +436,8 @@ viewFinishedSeries name series =
                             Err _ ->
                                 Nothing
                     )
-                |> List.sortBy (.trend >> secondsPerRun)
+                |> List.sortBy
+                    (.trend >> runsPerSecond >> negate)
 
         failures =
             series
@@ -445,6 +450,13 @@ viewFinishedSeries name series =
                             Ok _ ->
                                 Nothing
                     )
+
+        maxRunsPerSecond =
+            List.maximum
+                (successes
+                    |> List.map (.trend >> runsPerSecond)
+                )
+                |> Maybe.withDefault 0
     in
     [ { data = successes
       , columns =
@@ -456,23 +468,26 @@ viewFinishedSeries name series =
                             |> Ui.text
                             |> Ui.el [ Ui.centerY ]
               }
-            , let
-                maxSecondPerRun =
-                    List.maximum
-                        (successes
-                            |> List.map (.trend >> secondsPerRun)
-                        )
-                        |> Maybe.withDefault 0
-              in
-              { header = "time / run" |> viewInfoHeader
-              , width = Ui.minimum 129 Ui.shrink
+            , { header = "runs / second" |> viewInfoHeader
+              , width = Ui.shrink
               , view =
                     \{ trend } ->
-                        (secondsPerRun trend / maxSecondPerRun)
+                        [ runsPerSecond trend
+                            |> floor
+                            |> Humanize.int
+                            |> Ui.text
+                        , (runsPerSecond trend / maxRunsPerSecond)
                             |> viewRelation
-                                [ Ui.width Ui.fill, Ui.height Ui.fill ]
+                                [ Ui.width (Ui.px 129)
+                                , Ui.height Ui.fill
+                                , Ui.alignRight
+                                ]
+                        ]
+                            |> Ui.row
+                                [ Ui.spacing 10
+                                , Ui.width Ui.fill
+                                ]
               }
-            , viewRunsPerSecondColumn
             , goodnessOfFitColumn
             ]
       }
@@ -506,19 +521,6 @@ viewRunningSeries name series =
         |> Ui.column [ Ui.paddingXY 20 0 ]
     ]
         |> Ui.column [ Ui.spacing 8 ]
-
-
-viewRunsPerSecondColumn : Ui.Column context_ { record_ | trend : Trend Quick } msg_
-viewRunsPerSecondColumn =
-    { header = "runs / second" |> viewInfoHeader
-    , width = Ui.shrink
-    , view =
-        \{ trend } ->
-            runsPerSecond trend
-                |> floor
-                |> Humanize.int
-                |> Ui.text
-    }
 
 
 goodnessOfFitColumn : Ui.Column context_ { record_ | trend : Trend Quick } msg_
