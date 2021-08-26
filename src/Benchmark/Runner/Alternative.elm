@@ -1,7 +1,6 @@
 module Benchmark.Runner.Alternative exposing
     ( Program, program
     , programWith, Options, defaultOptions, Theme, darkTheme, lightTheme
-    , Context
     , progressBenchmark
     )
 
@@ -17,11 +16,6 @@ module Benchmark.Runner.Alternative exposing
 @docs programWith, Options, defaultOptions, Theme, darkTheme, lightTheme
 
 
-### to write a custom render function
-
-@docs Context
-
-
 ## to write your own runner
 
 @docs progressBenchmark
@@ -30,7 +24,7 @@ module Benchmark.Runner.Alternative exposing
 
 import Benchmark exposing (Benchmark)
 import Benchmark.Reporting as Report
-import Benchmark.Status.Alternative as Status exposing (Running(..), Status(..), StructureKind(..), runsPerSecond, secondsPerRun)
+import Benchmark.Status.Alternative as Status exposing (Running(..), Status(..), StructureKind(..), runsPerSecond)
 import Browser
 import Color exposing (Color, rgb)
 import Element.WithContext as Ui
@@ -92,58 +86,9 @@ programWith options suite =
 
 [`Theme`](#Theme).
 
-
-#### `view`
-
-Write a custom renderer. The theme's background and foreground colors are already set.
-
-    import Benchmark.Runner.Alternative as BenchmarkRunner exposing (defaultOptions)
-    import Benchmark.Status.Alternative exposing (Status(..), StructureKind(..))
-    import Element.WithContext as Ui
-
-    main =
-        BenchmarkRunner.programWith
-            { defaultOptions | view = view }
-            suite
-
-    view status =
-        case status of
-            Running _ _ ->
-                Ui.text "running benchmarks..."
-
-            Finished finished ->
-                viewFinished finished status.name
-
-    viewFinished finished =
-        case finished.structure of
-            Group group ->
-                Ui.column [ Ui.spacing 6 ]
-                    [ Ui.text finished.name
-                    , Ui.column [ Ui.spacing 4 ]
-                        (group |> List.map viewFinished)
-                    ]
-
-            Single { result } ->
-                case result of
-                    Ok trend ->
-                        Ui.row [ Ui.spacing 6 ]
-                            [ Ui.text finished.name
-                            , Ui.text
-                                (runsPerSecond trend
-                                    |> String.fromFloat
-                                )
-                            ]
-
-                    Err _ ->
-                        Ui.text "Failed!"
-
-            ...
-
 -}
 type alias Options =
-    { theme : Theme
-    , view : Status -> Ui.Element Context Msg
-    }
+    { theme : Theme }
 
 
 {-| The context of the runner's ui, containing the `theme`.
@@ -157,9 +102,7 @@ type alias Context =
 -}
 defaultOptions : Options
 defaultOptions =
-    { theme = darkTheme
-    , view = view
-    }
+    { theme = darkTheme }
 
 
 {-| Color theme.
@@ -222,11 +165,7 @@ viewDocument : Options -> Model -> Browser.Document Msg
 viewDocument { theme } { suite } =
     { title = "benchmarks"
     , body =
-        [ let
-            suiteReport =
-                suite |> Report.fromBenchmark |> Status.fromReport
-          in
-          view suiteReport
+        [ view (suite |> Status.fromBenchmark)
             |> Ui.layout
                 { theme = theme }
                 [ Ui.withAttribute (.theme >> .background)
@@ -240,22 +179,20 @@ viewDocument { theme } { suite } =
 
 view : Status -> Ui.Element Context msg_
 view status =
-    [ "benchmark report"
-        |> Ui.text
-        |> Ui.el [ Font.size 29 ]
-    , case status of
+    [ case status of
         Status.Running running _ ->
-            [ viewRunningStatus running
-            , viewStructure status
+            [ viewTitle "benchmarks running"
+            , viewRunningStatus running
             ]
-                |> Ui.column [ Ui.spacing 20 ]
+                |> Ui.column [ Ui.spacing 6 ]
 
         Status.Finished _ ->
-            viewStructure status
+            viewTitle "benchmark results"
+    , viewStructure status
     ]
         |> Ui.column
             [ Ui.paddingXY 40 45
-            , Ui.spacing 5
+            , Ui.spacing 20
             ]
 
 
@@ -584,15 +521,16 @@ viewRelation attrs percent =
                 )
                 Ui.none
     in
-    [ bar (Ui.fillPortion per100) [ Ui.alpha 0.58 ]
-    , bar (Ui.fillPortion (100 - per100)) [ Ui.alpha 0.12 ]
+    [ bar (Ui.fillPortion per100) [ Ui.alpha 0.56 ]
+    , bar (Ui.fillPortion (100 - per100)) [ Ui.alpha 0.125 ]
     ]
         |> Ui.row ([ Ui.paddingXY 0 4 ] ++ attrs)
 
 
 viewInfoHeader : String -> Ui.Element context_ msg_
 viewInfoHeader name =
-    Ui.text name
+    name
+        |> Ui.text
         |> Ui.el
             [ Font.size 17
             , Ui.paddingXY 0 3
@@ -605,6 +543,13 @@ viewHeadline name =
     name
         |> Ui.text
         |> Ui.el [ Font.size 23 ]
+
+
+viewTitle : String -> Ui.Element context_ msg_
+viewTitle text =
+    text
+        |> Ui.text
+        |> Ui.el [ Font.size 29 ]
 
 
 

@@ -2,7 +2,7 @@ module Main exposing (main)
 
 import Array exposing (Array)
 import Benchmark exposing (Benchmark, benchmark, describe, scale)
-import Benchmark.Alternative exposing (sort)
+import Benchmark.Alternative exposing (rank)
 import Benchmark.Runner.Alternative exposing (Program, program)
 
 
@@ -15,7 +15,7 @@ suite : Benchmark
 suite =
     describe "example"
         [ describe "array operations"
-            [ sort "range from 0"
+            [ rank "range from 0"
                 (\f -> f 100)
                 [ ( "with initialize", from0WithInitialize )
                 , ( "with List.range", from0WithListRange )

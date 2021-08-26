@@ -5,7 +5,6 @@ Extends [elm-explorations/benchmark](https://package.elm-lang.org/packages/elm-e
 - [compare _multiple_ benchmarks](https://github.com/elm-explorations/benchmark/issues/2)
 - run in a cleaner interface
     - dark and light mode
-    - allows you to write your own render function
 
 ![Benchmark example](https://raw.githubusercontent.com/lue-bird/alternative-benchmark-runner/master/benchmark-example.png)
 
@@ -14,7 +13,7 @@ Extends [elm-explorations/benchmark](https://package.elm-lang.org/packages/elm-e
 
 ```elm
 import Benchmark exposing (describe)
-import Benchmark.Alternative exposing (sort)
+import Benchmark.Alternative exposing (rank)
 import Benchmark.Runner.Alternative as BenchmarkRunner
 
 
@@ -23,7 +22,7 @@ main =
 
 suite =
     describe "array"
-        [ sort "range from 0"
+        [ rank "range from 0"
             (\f -> f 100)
             [ ( "with initialize", from0WithInitialize )
             , ( "with List.range", from0WithListRange )
@@ -52,3 +51,5 @@ main =
         { defaultOptions | theme = lightTheme }
         suite
 ```
+
+Have more suggestions? → [contributing](https://github.com/lue-bird/elm-alternative-benchmark-runner/blob/master/contributing.md).

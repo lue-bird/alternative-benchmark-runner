@@ -1,8 +1,8 @@
-module Benchmark.Alternative exposing (sort)
+module Benchmark.Alternative exposing (rank)
 
 {-| More ways to produce `Benchmark`s.
 
-@docs sort
+@docs rank
 
 -}
 
@@ -14,7 +14,7 @@ This is useful when optimizing data structures or
 other situations where you can make
 apples-to-apples comparisons between different approaches.
 
-    sort "initialize"
+    rank "initialize"
         (\f -> f 100 identity)
         [ ( "optimized", Array.Optimized.initialize )
         , ( "core", Array.initialize )
@@ -23,8 +23,8 @@ apples-to-apples comparisons between different approaches.
 With the first argument you specify how you run the functions in the list.
 
 -}
-sort : String -> (f -> result_) -> List ( String, f ) -> Benchmark
-sort name run benchmarks =
+rank : String -> (f -> result_) -> List ( String, f ) -> Benchmark
+rank name run benchmarks =
     Benchmark.scale name
         (benchmarks
             |> List.map

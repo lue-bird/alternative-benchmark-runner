@@ -127,7 +127,7 @@ results finished =
 {-| The structure type of a specific `Benchmark`.
 
   - `Single`: `Benchmark.benchmark`
-  - `Series`: `Benchmark.compare`, `Benchmark.scale`, [`Benchmark.Alternative.sort`](Benchmark-Alternative#sort)
+  - `Series`: `Benchmark.compare`, `Benchmark.scale`, [`Benchmark.Alternative.rank`](Benchmark-Alternative#rank)
   - `Group`: `Benchmark.describe`
 
 The status of
