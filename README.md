@@ -52,4 +52,4 @@ main =
         suite
 ```
 
-Have more suggestions? → [contributing](https://github.com/lue-bird/elm-alternative-benchmark-runner/blob/master/contributing.md).
+Have suggestions? → [contributing](https://github.com/lue-bird/elm-alternative-benchmark-runner/blob/master/contributing.md).
